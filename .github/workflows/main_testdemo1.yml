@@ -31,7 +31,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: website/dist  # Adjust this if your Angular app name is different
+          path: website/dist/login-app   # Correct build output folder
 
   deploy:
     runs-on: ubuntu-latest
@@ -59,4 +59,6 @@ jobs:
         with:
           app-name: 'testdemo1'
           slot-name: 'Production'
-          package: ./node-app
+          package: ./node-app    # This matches the artifact folder name
+
+
