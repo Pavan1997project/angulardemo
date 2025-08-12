@@ -20,11 +20,11 @@ jobs:
         with:
           node-version: '20.x'
 
-      - name: npm install, build, and test
+      - name: npm install, build, and test (CI mode)
         run: |
           npm install
           npm run build --if-present
-          npm run test --if-present
+          npx ng test --watch=false --browsers=ChromeHeadless
         working-directory: ./website
 
       - name: Verify build output folder contents
@@ -63,7 +63,3 @@ jobs:
           app-name: 'testdemo1'
           slot-name: 'Production'
           package: ./node-app
-
-
-
-
