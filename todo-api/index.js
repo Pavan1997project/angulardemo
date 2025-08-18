@@ -50,5 +50,6 @@ app.delete('/todos/:id', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`🚀 To-Do API running at http://localhost:${port}`);
+  console.log(`To-Do API running at http://localhost:${port}`);
 });
+
