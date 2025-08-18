@@ -19,6 +19,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure history is available for diff
 
       - id: filter
         uses: dorny/paths-filter@v3
@@ -27,7 +29,12 @@ jobs:
             frontend:
               - 'website/**'
             backend:
-              - 'backend/**'
+              - 'todo-api/**'
+
+      - name: Debug output
+        run: |
+          echo "Frontend changes: ${{ steps.filter.outputs.frontend }}"
+          echo "Backend changes: ${{ steps.filter.outputs.backend }}"
 
   # ---------------------------------------
   # Build Angular Website
@@ -92,7 +99,7 @@ jobs:
           package: website-app
 
   # ---------------------------------------
-  # Build Node.js Backend
+  # Build Node.js Backend (todo-api)
   # ---------------------------------------
   build-backend:
     needs: changes
@@ -111,16 +118,17 @@ jobs:
 
       - name: Install Backend Dependencies
         run: npm install
-        working-directory: ./backend
+        working-directory: ./todo-api
 
       - name: Upload Backend Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-app
-          path: backend/**
+          path: todo-api/**
 
   # ---------------------------------------
-  # Deploy Node.js Backend to Azure
+  # Deploy Node.js Backend to Azure (optional)
+  # Uncomment to enable backend deployment
   # ---------------------------------------
   # deploy-backend:
   #   needs: build-backend
@@ -129,24 +137,23 @@ jobs:
   #   permissions:
   #     id-token: write
   #     contents: read
-
+  #
   #   steps:
   #     - uses: actions/download-artifact@v4
   #       with:
   #         name: backend-app
   #         path: backend-app
-
+  #
   #     - name: Azure Login
   #       uses: azure/login@v2
   #       with:
   #         client-id: ${{ secrets.AZURE_BACKEND_CLIENTID }}
   #         tenant-id: ${{ secrets.AZURE_BACKEND_TENANTID }}
   #         subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTIONID }}
-
+  #
   #     - name: Deploy Backend App
   #       uses: azure/webapps-deploy@v3
   #       with:
-  #         app-name: 'testdemo1-backend'  # 🔁 Replace with your backend Azure App name
+  #         app-name: 'testdemo1-backend'
   #         slot-name: 'Production'
   #         package: backend-app
-
