@@ -122,30 +122,31 @@ jobs:
   # ---------------------------------------
   # Deploy Node.js Backend to Azure
   # ---------------------------------------
-  deploy-backend:
-    needs: build-backend
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
+  # deploy-backend:
+  #   needs: build-backend
+  #   if: github.event_name != 'pull_request'
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     id-token: write
+  #     contents: read
 
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: backend-app
-          path: backend-app
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: backend-app
+  #         path: backend-app
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_BACKEND_CLIENTID }}
-          tenant-id: ${{ secrets.AZURE_BACKEND_TENANTID }}
-          subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTIONID }}
+  #     - name: Azure Login
+  #       uses: azure/login@v2
+  #       with:
+  #         client-id: ${{ secrets.AZURE_BACKEND_CLIENTID }}
+  #         tenant-id: ${{ secrets.AZURE_BACKEND_TENANTID }}
+  #         subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTIONID }}
 
-      - name: Deploy Backend App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'testdemo1-backend'  # 🔁 Replace with your backend Azure App name
-          slot-name: 'Production'
-          package: backend-app
+  #     - name: Deploy Backend App
+  #       uses: azure/webapps-deploy@v3
+  #       with:
+  #         app-name: 'testdemo1-backend'  # 🔁 Replace with your backend Azure App name
+  #         slot-name: 'Production'
+  #         package: backend-app
+
