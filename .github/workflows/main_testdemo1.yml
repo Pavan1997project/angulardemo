@@ -1,16 +1,40 @@
-name: Build and deploy Angular app to Azure Web App - testdemo1
+name: CI/CD Pipeline - Angular Frontend + Node.js Backend
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  build:
+  # ---------------------------------------
+  # Detect if frontend or backend was changed
+  # ---------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'website/**'
+            backend:
+              - 'backend/**'
+
+  # ---------------------------------------
+  # Build Angular Website
+  # ---------------------------------------
+  build-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: windows-latest
     permissions:
       contents: read
@@ -18,56 +42,110 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20.x'
 
-      - name: Install dependencies, build, and run tests (CI mode)
+      - name: Install & Build Angular App
         run: |
           npm install
           npm run build --if-present
           npx ng test --watch=false --browsers=ChromeHeadless
         working-directory: ./website
 
-      # Check actual build output
-      - name: Verify build output folder contents
-        run: dir website\dist\login-app\browser
-
-      # Upload only browser folder contents
-      - name: Upload build artifact
+      - name: Upload Angular Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: node-app
-          path: website/dist/login-app/browser/**   # Deploy browser folder contents only
-          
-  deploy:
+          name: website-app
+          path: website/dist/login-app/browser/**
+
+  # ---------------------------------------
+  # Deploy Angular Website to Azure
+  # ---------------------------------------
+  deploy-frontend:
+    needs: build-frontend
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name != 'pull_request' # Skip deploy for PRs
     permissions:
       id-token: write
       contents: read
 
     steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
-          name: node-app
-          path: node-app
+          name: website-app
+          path: website-app
 
-      - name: Login to Azure
+      - name: Azure Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A79F8BDF78A6492B9EFB8909729EC3E1 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_66B600BC437549B2A64477D6023C1AE1 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_3ED8D64B8BAC4DAB88FAC50ABDB90BBB }}
 
-      - name: Deploy to Azure Web App
+      - name: Deploy Angular App
         uses: azure/webapps-deploy@v3
-        id: deploy-to-webapp
         with:
           app-name: 'testdemo1'
           slot-name: 'Production'
-          package: node-app   # Contents of browser folder go directly to wwwroot
+          package: website-app
 
+  # ---------------------------------------
+  # Build Node.js Backend
+  # ---------------------------------------
+  build-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+
+      - name: Install Backend Dependencies
+        run: npm install
+        working-directory: ./backend
+
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-app
+          path: backend/**
+
+  # ---------------------------------------
+  # Deploy Node.js Backend to Azure
+  # ---------------------------------------
+  deploy-backend:
+    needs: build-backend
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-app
+          path: backend-app
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_BACKEND_CLIENTID }}
+          tenant-id: ${{ secrets.AZURE_BACKEND_TENANTID }}
+          subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTIONID }}
+
+      - name: Deploy Backend App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'testdemo1-backend'  # 🔁 Replace with your backend Azure App name
+          slot-name: 'Production'
+          package: backend-app
