@@ -17,7 +17,7 @@ on:
   # Scheduled runs
   schedule:
     # Daily sanity at 1:45 PM IST → 8:15 AM UTC
-    - cron: "40 8 * * *"
+    - cron: "50 8 * * *"
     # Friday regression at 6 PM IST → 12:30 PM UTC
     - cron: "30 12 * * 5"
 
@@ -60,4 +60,5 @@ jobs:
         with:
           name: pytest-sanity-report
           path: report.html
+
 
