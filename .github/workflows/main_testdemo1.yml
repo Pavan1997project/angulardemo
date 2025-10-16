@@ -1,6 +1,20 @@
 name: PR CI - Playwright Automation
 
 on:
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Choose test suite to run'
+        required: true
+        default: 'sanity'
+        type: choice
+        options:
+          - sanity
+          - regression
+          - all
+
+  # Scheduled runs
   schedule:
     # Daily sanity at 1:45 PM IST → 8:15 AM UTC
     - cron: "15 8 * * *"
@@ -13,7 +27,7 @@ on:
 
 jobs:
   sanity-job:
-    if: github.event_name == 'schedule' && github.event.schedule == '15 8 * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '15 8 * * *' || github.event_name == 'workflow_dispatch' && github.event.inputs.suite == 'sanity'
     runs-on: ubuntu-latest
     env:
       APP_USERNAME: ${{ secrets.APP_USERNAME }}
