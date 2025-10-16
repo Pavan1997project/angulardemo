@@ -1,159 +1,53 @@
-name: CI/CD Pipeline - Angular Frontend + Node.js Backend
+name: PR CI - Playwright Automation
 
 on:
-  push:
-    branches: [main]
+  # Scheduled runs
+  schedule:
+    # ✅ Every day at 10:20 AM IST (4:50 AM UTC) → sanity
+    - cron: "50 4 * * *"
+    # ✅ Every Friday at 6 PM IST (12:30 PM UTC) → regression
+    - cron: "30 12 * * 5"
+
+  # ✅ Run tests on every Pull Request
   pull_request:
-    branches: [main]
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
-  # ---------------------------------------
-  # Detect if frontend or backend was changed
-  # ---------------------------------------
-  changes:
+  # -----------------------
+  # Daily Sanity Job
+  # -----------------------
+  sanity-job:
+    if: github.event_name == 'schedule' && github.event.schedule == '50 4 * * *'
     runs-on: ubuntu-latest
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend: ${{ steps.filter.outputs.backend }}
-
+    env:
+      APP_USERNAME: ${{ secrets.APP_USERNAME }}
+      APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+    defaults:
+      run:
+        working-directory: Automation/tests
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Ensure history is available for diff
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - id: filter
-        uses: dorny/paths-filter@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          filters: |
-            frontend:
-              - 'website/**'
-            backend:
-              - 'todo-api/**'
+          python-version: '3.10'
 
-      - name: Debug output
+      - name: Install dependencies
         run: |
-          echo "Frontend changes: ${{ steps.filter.outputs.frontend }}"
-          echo "Backend changes: ${{ steps.filter.outputs.backend }}"
+          pip install --upgrade pip
+          pip install pytest pytest-html playwright openpyxl
+          playwright install --with-deps chromium
 
-  # ---------------------------------------
-  # Build Angular Website
-  # ---------------------------------------
-  build-frontend:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    runs-on: windows-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-
-      - name: Install & Build Angular App
+      - name: Run Sanity Tests
         run: |
-          npm install
-          npm run build --if-present
-          npx ng test --watch=false --browsers=ChromeHeadless
-        working-directory: ./website
+          pytest -v . --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m sanity
 
-      - name: Upload Angular Build Artifact
+      - name: Upload HTML Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: website-app
-          path: website/dist/login-app/browser/**
-
-  # ---------------------------------------
-  # Deploy Angular Website to Azure
-  # ---------------------------------------
-  deploy-frontend:
-    needs: build-frontend
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: website-app
-          path: website-app
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A79F8BDF78A6492B9EFB8909729EC3E1 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_66B600BC437549B2A64477D6023C1AE1 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_3ED8D64B8BAC4DAB88FAC50ABDB90BBB }}
-
-      - name: Deploy Angular App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: 'testdemo1'
-          slot-name: 'Production'
-          package: website-app
-
-  # ---------------------------------------
-  # Build Node.js Backend (todo-api)
-  # ---------------------------------------
-  build-backend:
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-
-      - name: Install Backend Dependencies
-        run: npm install
-        working-directory: ./todo-api
-
-      - name: Upload Backend Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-app
-          path: todo-api/**
-
-  # ---------------------------------------
-  # Deploy Node.js Backend to Azure (optional)
-  # Uncomment to enable backend deployment
-  # ---------------------------------------
-  # deploy-backend:
-  #   needs: build-backend
-  #   if: github.event_name != 'pull_request'
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     id-token: write
-  #     contents: read
-  #
-  #   steps:
-  #     - uses: actions/download-artifact@v4
-  #       with:
-  #         name: backend-app
-  #         path: backend-app
-  #
-  #     - name: Azure Login
-  #       uses: azure/login@v2
-  #       with:
-  #         client-id: ${{ secrets.AZURE_BACKEND_CLIENTID }}
-  #         tenant-id: ${{ secrets.AZURE_BACKEND_TENANTID }}
-  #         subscription-id: ${{ secrets.AZURE_BACKEND_SUBSCRIPTIONID }}
-  #
-  #     - name: Deploy Backend App
-  #       uses: azure/webapps-deploy@v3
-  #       with:
-  #         app-name: 'testdemo1-backend'
-  #         slot-name: 'Production'
-  #         package: backend-app
+          name: pytest-sanity-report
+          path: report.html
