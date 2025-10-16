@@ -138,6 +138,7 @@ def browser_context():
         page.fill("#login_username", username)
         page.fill("#login_password", password)
         page.fill("#login_password", password)
+        time.sleep(10)
         page.wait_for_selector("#btn_login:enabled", timeout=15000)
         page.click("#btn_login")
         time.sleep(30)
