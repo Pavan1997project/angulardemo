@@ -1,31 +1,26 @@
 name: PR CI - Playwright Automation
 
 on:
-  # Scheduled runs
   schedule:
-    # ✅ Every day at 10:20 AM IST (4:50 AM UTC) → sanity
-    - cron: "50 4 * * *"
-    # ✅ Every Friday at 6 PM IST (12:30 PM UTC) → regression
+    # Daily sanity at 1:45 PM IST → 8:15 AM UTC
+    - cron: "15 8 * * *"
+    # Friday regression at 6 PM IST → 12:30 PM UTC
     - cron: "30 12 * * 5"
 
-  # ✅ Run tests on every Pull Request
   pull_request:
     branches:
       - main
 
 jobs:
-  # -----------------------
-  # Daily Sanity Job
-  # -----------------------
   sanity-job:
-    if: github.event_name == 'schedule' && github.event.schedule == '50 4 * * *'
+    if: github.event_name == 'schedule' && github.event.schedule == '15 8 * * *'
     runs-on: ubuntu-latest
     env:
       APP_USERNAME: ${{ secrets.APP_USERNAME }}
       APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
     defaults:
       run:
-        working-directory: Automation/tests
+        working-directory: Automation
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -38,12 +33,12 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pytest pytest-html playwright openpyxl
+          pip install pytest pytest-html playwright openpyxl faker
           playwright install --with-deps chromium
 
       - name: Run Sanity Tests
         run: |
-          pytest -v . --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m sanity
+          pytest tests --html=report.html --self-contained-html --maxfail=1 --disable-warnings -m sanity
 
       - name: Upload HTML Report
         if: always()
